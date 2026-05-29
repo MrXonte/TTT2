@@ -11,8 +11,83 @@ DEFINE_BASECLASS("ttt_basegrenade_proj")
 ENT.Type = "anim"
 ENT.Base = "ttt_basegrenade_proj"
 ENT.Model = Model("models/weapons/w_eq_smokegrenade_thrown.mdl")
+ENT.SmokeLifetime = 15
+ENT.ExtinguishInterval = 0.25
+ENT.FlameLifetimeReduction = 1
+ENT.VFireLifetimeReduction = 5
 
 AccessorFunc(ENT, "radius", "Radius", FORCE_NUMBER)
+
+if SERVER then
+    local mathMax = math.max
+    local entsFindInSphere = ents.FindInSphere
+
+    local function ReduceTTTFlameLife(flame, amount)
+        local dieTime = flame:GetDieTime()
+
+        if dieTime == 0 then
+            return
+        end
+
+        flame:SetDieTime(mathMax(CurTime(), dieTime - amount))
+    end
+
+    local function SoftenVFireOnEntity(ent, amount)
+        if not vFireInstalled or not isfunction(vFireGetFires) then
+            return
+        end
+
+        local fires = vFireGetFires(ent)
+
+        if not fires then
+            return
+        end
+
+        for _, fire in pairs(fires) do
+            if IsValid(fire) and isfunction(fire.SoftExtinguish) then
+                fire:SoftExtinguish(amount)
+            end
+        end
+    end
+
+    ---
+    -- @param boolean extinguishNow
+    -- @realm server
+    function ENT:SuppressFires(extinguishNow)
+        local entsInSphere = entsFindInSphere(self:GetPos(), self:GetRadius())
+        local vFireLifeReduction = extinguishNow
+            and self.VFireLifetimeReduction * 2
+            or self.VFireLifetimeReduction
+
+        for i = 1, #entsInSphere do
+            local ent = entsInSphere[i]
+
+            if not IsValid(ent) or ent == self then
+                continue
+            end
+
+            if ent:GetClass() == "ttt_flame" then
+                if extinguishNow then
+                    ent:SetDieTime(0)
+                else
+                    ReduceTTTFlameLife(ent, self.FlameLifetimeReduction)
+                end
+
+                continue
+            end
+
+            if vFireInstalled and isfunction(ent.SoftExtinguish) then
+                ent:SoftExtinguish(vFireLifeReduction)
+            end
+
+            SoftenVFireOnEntity(ent, vFireLifeReduction)
+
+            if ent:IsOnFire() then
+                ent:Extinguish()
+            end
+        end
+    end
+end
 
 ---
 -- @ignore
@@ -22,6 +97,33 @@ function ENT:Initialize()
     end
 
     return BaseClass.Initialize(self)
+end
+
+---
+-- @ignore
+function ENT:Think()
+    if not self.hasDetonated then
+        return BaseClass.Think(self)
+    end
+
+    if CLIENT then
+        return
+    end
+
+    if self.smokeEndTime <= CurTime() then
+        self:Remove()
+
+        return
+    end
+
+    if self.nextExtinguishTick <= CurTime() then
+        self:SuppressFires(false)
+        self.nextExtinguishTick = CurTime() + self.ExtinguishInterval
+    end
+
+    self:NextThink(CurTime())
+
+    return true
 end
 
 if CLIENT then
@@ -71,15 +173,21 @@ end
 -- @ignore
 function ENT:Explode(tr)
     if SERVER then
+        self:SetDetonateExact(0)
         self:SetNoDraw(true)
         self:SetSolid(SOLID_NONE)
+        self:SetMoveType(MOVETYPE_NONE)
 
         -- pull out of the surface
         if tr.Fraction ~= 1.0 then
             self:SetPos(tr.HitPos + tr.HitNormal * 0.6)
         end
 
-        self:Remove()
+        self.hasDetonated = true
+        self.smokeEndTime = CurTime() + self.SmokeLifetime
+        self.nextExtinguishTick = 0
+
+        self:SuppressFires(true)
     else
         local spos = self:GetPos()
         util.PaintDown(spos, "SmallScorch", self)
