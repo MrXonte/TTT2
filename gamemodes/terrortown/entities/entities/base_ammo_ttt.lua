@@ -153,10 +153,11 @@ function ENT:GetConfiguredBoxAmount()
 end
 
 ---
+-- @param[opt] Player ply
 -- @return number
 -- @realm shared
-function ENT:GetConfiguredReserveMax()
-    return WEPS.GetAmmoReserveMax(self.AmmoType or self:GetClass())
+function ENT:GetConfiguredReserveMax(ply)
+    return WEPS.GetAmmoReserveMax(self.AmmoType or self:GetClass(), ply)
         or math.max(0, self.AmmoMax or 0)
 end
 
@@ -315,9 +316,8 @@ function ENT:Touch(ply)
     end
 
     local ammo = ply:GetAmmoCount(self.AmmoType)
-    local ammoMax = self:GetConfiguredReserveMax()
+    local ammoMax = self:GetConfiguredReserveMax(ply)
 
-    -- need clipmax info and room for at least 1/4th
     if ammoMax <= ammo then
         return
     end

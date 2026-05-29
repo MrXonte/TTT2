@@ -1594,8 +1594,10 @@ L.header_sprint_general = "Sprint Settings"
 L.header_playersettings_armor = "Armor System Settings"
 L.header_ammo_administration = "Ammo Settings"
 L.header_ammo_appearance = "Ammo Appearance"
-L.help_ammo_administration = "Configure each ammo entity's spawn availability and box amount here. Reserve limits are still shared per ammo type, so entities with the same ammo type edit the same spare-ammo cap."
+L.help_ammo_administration = "Configure each ammo entity's spawn availability and box amount here. Static reserve limits are shared per ammo type, so entities with the same ammo type edit the same spare-ammo cap unless dynamic ammo reserve is enabled."
+L.help_ammo_dynamic_reserve = "When enabled, each player's spare ammo limit for an ammo type becomes the sum of the ClipMax values of their equipped weapons that use that ammo. The reserve sliders below are ignored while this is on."
 L.help_ammo_appearance = "These settings are clientside only and change how ammo boxes look and whether they show TargetID information for you."
+L.label_ammo_dynamic_reserve = "Dynamic ammo reserve"
 L.label_ammo_entity_class = "{class}"
 L.label_ammo_enable = "Enable this ammo entity"
 L.label_ammo_box_amount = "Ammo per box"
@@ -2496,7 +2498,7 @@ the changes you want for your server.
   <li>
     <p>
       Assign forced roles (those that were asked by some external code or addon).
-      There is also some extra logic to deal with the case where a player was assigned 
+      There is also some extra logic to deal with the case where a player was assigned
       multiple forced roles. This is not commonly used, but is included for completeness.
     </p>
   </li>

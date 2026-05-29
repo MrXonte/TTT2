@@ -1300,11 +1300,26 @@ if SERVER then
     -- @realm server
     function SWEP:PreDrop()
         local owner = self:GetOwner()
-        if not IsValid(owner) or self.Primary.Ammo == "none" then
+        local ammoType = self.Primary and self.Primary.Ammo
+
+        if not IsValid(owner) or not ammoType or ammoType == "" or ammoType == "none" then
             return
         end
 
         local ammo = self:Ammo1()
+
+        if WEPS.IsDynamicAmmoReserveEnabled() then
+            local ammoMax = WEPS.GetAmmoReserveMax(ammoType, owner, self) or 0
+            local overflow = math.max(0, ammo - ammoMax)
+
+            if overflow > 0 then
+                self.StoredAmmo = math.max(0, self.StoredAmmo or 0) + overflow
+
+                owner:RemoveAmmo(overflow, ammoType)
+            end
+
+            return
+        end
 
         -- Do not drop ammo if we have another gun that uses this type
         local weps = owner:GetWeapons()
@@ -1326,7 +1341,7 @@ if SERVER then
         self.StoredAmmo = ammo
 
         if ammo > 0 then
-            owner:RemoveAmmo(ammo, self.Primary.Ammo)
+            owner:RemoveAmmo(ammo, ammoType)
         end
     end
 
@@ -1376,11 +1391,41 @@ if SERVER then
 
         if IsValid(newowner) and self.StoredAmmo > 0 and self.Primary.Ammo ~= "none" then
             local ammo = newowner:GetAmmoCount(self.Primary.Ammo)
-            local given = math.min(self.StoredAmmo, self.Primary.ClipMax - ammo)
+            local dynamicAmmoReserve = WEPS.IsDynamicAmmoReserveEnabled()
+            local given = 0
 
-            newowner:GiveAmmo(given, self.Primary.Ammo)
+            if dynamicAmmoReserve then
+                local hasWeapon = false
+                local weps = newowner:GetWeapons()
 
-            self.StoredAmmo = 0
+                for i = 1, #weps do
+                    if weps[i] == self then
+                        hasWeapon = true
+
+                        break
+                    end
+                end
+
+                local ammoMax = WEPS.GetAmmoReserveMax(self.Primary.Ammo, newowner) or 0
+
+                if not hasWeapon then
+                    ammoMax = ammoMax + math.max(0, self.Primary.ClipMax or self:GetMaxClip1() or 0)
+                end
+
+                given = math.min(self.StoredAmmo, math.max(0, ammoMax - ammo))
+            else
+                given = math.min(self.StoredAmmo, self.Primary.ClipMax - ammo)
+            end
+
+            if given > 0 then
+                newowner:GiveAmmo(given, self.Primary.Ammo)
+            end
+
+            if dynamicAmmoReserve then
+                self.StoredAmmo = math.max(self.StoredAmmo - given, 0)
+            else
+                self.StoredAmmo = 0
+            end
         end
     end
 

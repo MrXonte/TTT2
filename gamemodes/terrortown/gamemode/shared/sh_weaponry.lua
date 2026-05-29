@@ -20,8 +20,10 @@ local scriptedEntsGetList = scripted_ents.GetList
 
 local ammoEntitySettingRegistry = {}
 local ammoTypeSettingRegistry = {}
+local dynamicAmmoReserveConVarName = "ttt2_ammo_dynamic_reserve"
 local RegisterAmmoEntitySettings
 local RegisterAmmoTypeSettings
+local cvDynamicAmmoReserve
 
 local function GetAmmoClassIdentifier(class)
     return stringLower(stringGsub(class or "", "[^%w_]", "_"))
@@ -49,6 +51,30 @@ local ammoTypeDefaultReserveMax = {
 
 local function GetAmmoDefaultReserveMax(ammoType, ammo)
     return mathMax(ammoTypeDefaultReserveMax[ammoType] or 0, mathMax(0, ammo.AmmoMax or 0))
+end
+
+local function GetWeaponAmmoType(wep)
+    if not IsValid(wep) or not wep.Primary then
+        return
+    end
+
+    local ammoType = wep.Primary.Ammo
+
+    if not ammoType or ammoType == "" or ammoType == "none" then
+        return
+    end
+
+    return ammoType
+end
+
+local function GetWeaponClipMax(wep)
+    if not IsValid(wep) then
+        return 0
+    end
+
+    local clipMax = wep.Primary and wep.Primary.ClipMax or wep:GetMaxClip1()
+
+    return mathMax(0, clipMax or 0)
 end
 
 local function BuildAmmoEntityData()
@@ -105,6 +131,13 @@ local function BuildAmmoEntityData()
 end
 
 if SERVER then
+    -- @realm server
+    cvDynamicAmmoReserve = CreateConVar(
+        dynamicAmmoReserveConVarName,
+        "0",
+        { FCVAR_NOTIFY, FCVAR_ARCHIVE }
+    )
+
     ---
     -- @param table ammoTypeData
     -- @return nil|string
@@ -258,6 +291,22 @@ function WEPS.GetAmmoTypeSettingsConVarName(ammoType, suffix)
 end
 
 ---
+-- Returns the generated convar name for the global dynamic reserve toggle.
+-- @return string
+-- @realm shared
+function WEPS.GetDynamicAmmoReserveConVarName()
+    return dynamicAmmoReserveConVarName
+end
+
+---
+-- Returns whether dynamic reserve ammo is enabled.
+-- @return boolean
+-- @realm shared
+function WEPS.IsDynamicAmmoReserveEnabled()
+    return SERVER and cvDynamicAmmoReserve and cvDynamicAmmoReserve:GetBool() or false
+end
+
+---
 -- Returns the current shared settings for a specific ammo type.
 -- @param string ammoType The ammo type string
 -- @return nil|table
@@ -371,11 +420,17 @@ function WEPS.GetAmmoBoxAmount(class, fallback)
     return settings.boxAmount
 end
 
----
--- @param string ammoIdentifier The ammo entity class or ammo type string
--- @return number
--- @realm shared
-function WEPS.GetAmmoReserveMax(ammoIdentifier)
+local function GetAmmoTypeForIdentifier(ammoIdentifier)
+    local settings = WEPS.GetAmmoSettings(ammoIdentifier)
+
+    if settings then
+        return settings.ammoType
+    end
+
+    return ammoIdentifier
+end
+
+local function GetStaticAmmoReserveMax(ammoIdentifier)
     local settings = WEPS.GetAmmoTypeSettings(ammoIdentifier)
 
     if not settings then
@@ -387,6 +442,54 @@ function WEPS.GetAmmoReserveMax(ammoIdentifier)
     end
 
     return settings.reserveMax
+end
+
+---
+-- Returns the dynamic reserve max for a player based on equipped weapons.
+-- @param Player ply The player whose current loadout should be checked
+-- @param string ammoIdentifier The ammo entity class or ammo type string
+-- @param[opt] Weapon excludedWeapon A weapon to ignore for the calculation
+-- @return nil|number
+-- @realm shared
+function WEPS.GetDynamicAmmoReserveMax(ply, ammoIdentifier, excludedWeapon)
+    if not SERVER or not IsValid(ply) or not ply:IsPlayer() then
+        return GetStaticAmmoReserveMax(ammoIdentifier)
+    end
+
+    local ammoType = GetAmmoTypeForIdentifier(ammoIdentifier)
+
+    if not ammoType then
+        return
+    end
+
+    local reserveMax = 0
+    local weps = ply:GetWeapons()
+
+    for i = 1, #weps do
+        local wep = weps[i]
+
+        if wep == excludedWeapon or GetWeaponAmmoType(wep) ~= ammoType then
+            continue
+        end
+
+        reserveMax = reserveMax + GetWeaponClipMax(wep)
+    end
+
+    return reserveMax
+end
+
+---
+-- @param string ammoIdentifier The ammo entity class or ammo type string
+-- @param[opt] Player ply The player whose dynamic reserve should be calculated
+-- @param[opt] Weapon excludedWeapon A weapon to ignore for dynamic reserve calculations
+-- @return nil|number
+-- @realm shared
+function WEPS.GetAmmoReserveMax(ammoIdentifier, ply, excludedWeapon)
+    if WEPS.IsDynamicAmmoReserveEnabled() and IsValid(ply) and ply:IsPlayer() then
+        return WEPS.GetDynamicAmmoReserveMax(ply, ammoIdentifier, excludedWeapon)
+    end
+
+    return GetStaticAmmoReserveMax(ammoIdentifier)
 end
 
 ---
