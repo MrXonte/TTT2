@@ -159,7 +159,10 @@ function CLGAMEMODESUBMENU:Populate(parent)
         }
 
         for ammoType in SortedPairs(ShopEditor.GetAmmoTypes()) do
-            ammoChoices[#ammoChoices + 1] = { title = ammoType, value = ammoType }
+            ammoChoices[#ammoChoices + 1] = {
+                title = LANG.GetRawTranslation("ammo_" .. string.lower(ammoType)) or ammoType,
+                value = ammoType,
+            }
         end
 
         form2:MakeComboBox({

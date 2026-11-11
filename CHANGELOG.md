@@ -6,7 +6,7 @@ All notable changes to TTT2 will be documented here. Inspired by [keep a changel
 
 ### Added
 
-- Added a primary ammo type setting to Edit Equipment, including addon ammo boxes and a no-ammo option (by @MrXonte)
+- Added a primary ammo type setting to Edit Equipment, including localized ammo names, addon ammo boxes and a no-ammo option (by @MrXonte)
 - Added momentary_rot_button to targetID (by @MrXonte)
 
 ### Fixed
