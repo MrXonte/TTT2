@@ -82,33 +82,18 @@ end
 -- @return boolean
 -- @realm shared
 function ENT:CheckForWeapon(ply)
-    if not self.CachedWeapons then
-        -- create a cache of what weapon classes use this ammo
-        local tbl = {}
-        local weps = weapons.GetList()
-        local cls = self:GetClass()
+    -- Inspect instances: weapons spawned before an editor change retain their old ammo.
+    local weps = ply:GetWeapons()
+    local ammoID = game.GetAmmoID(self.AmmoType)
 
-        local WEPSGetClass = WEPS.GetClass
-
-        for i = 1, #weps do
-            local v = weps[i]
-
-            if v.AmmoEnt == cls then
-                tbl[#tbl + 1] = WEPSGetClass(v)
-            end
-        end
-
-        self.CachedWeapons = tbl
+    if ammoID == -1 then
+        return false
     end
 
-    local plyHasWeapon = ply.HasWeapon
-    local cached = self.CachedWeapons
+    for i = 1, #weps do
+        local primary = weps[i].Primary
 
-    -- Check if player has a weapon that we know needs us. This is called in
-    -- Touch, which is called many a time, so we use the cache here to avoid
-    -- looping through every weapon the player has to check their AmmoEnt.
-    for i = 1, #cached do
-        if plyHasWeapon(ply, cached[i]) then
+        if primary and isstring(primary.Ammo) and game.GetAmmoID(primary.Ammo) == ammoID then
             return true
         end
     end

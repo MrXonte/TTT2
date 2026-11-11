@@ -76,6 +76,10 @@ ShopEditor.savingKeys = {
         bits = 5,
         default = 3,
     },
+    PrimaryAmmo = {
+        typ = "string",
+        default = "",
+    },
 }
 
 ShopEditor.savingKeysCount = table.Count(ShopEditor.savingKeys)
@@ -136,6 +140,109 @@ ShopEditor.cvars = {
 ShopEditor.sortedEquipmentList = {}
 
 local pairs = pairs
+
+---
+-- Returns registered ammo types with a usable ammo box entity.
+-- @param[opt] string preferredClass Preferred box when several entities supply the same ammo
+-- @return table Map of ammo type names to ammo box classes
+-- @realm shared
+function ShopEditor.GetAmmoTypes(preferredClass)
+    local ammoTypes = {}
+
+    for class in pairs(scripted_ents.GetList()) do
+        if class == "base_ammo_ttt" then
+            continue
+        end
+
+        local ammo = scripted_ents.GetMember(class, "AmmoType")
+        local amount = scripted_ents.GetMember(class, "AmmoAmount")
+        local ammoID = isstring(ammo) and game.GetAmmoID(ammo) or -1
+
+        if ammoID == -1 or (tonumber(amount) or 0) <= 0 then
+            continue
+        end
+
+        local name = game.GetAmmoName(ammoID)
+        local previous = ammoTypes[name]
+
+        if
+            not previous
+            or class == preferredClass
+            or (previous ~= preferredClass and class < previous)
+        then
+            ammoTypes[name] = class
+        end
+    end
+
+    return ammoTypes
+end
+
+---
+-- Saves the original ammo settings, including inherited values, before applying overrides.
+-- @param table equipment Weapon definition
+-- @realm shared
+-- @internal
+function ShopEditor.InitWeaponAmmo(equipment)
+    if equipment.ttt2DefaultAmmo then
+        return
+    end
+
+    local base = weapons.GetStored(equipment.Base or "")
+    local defaults = {}
+
+    if base and base ~= equipment then
+        ShopEditor.InitWeaponAmmo(base)
+        defaults = base.ttt2DefaultAmmo
+    end
+
+    equipment.ttt2DefaultAmmo = {
+        ammo = equipment.Primary and equipment.Primary.Ammo or defaults.ammo,
+        entity = equipment.AmmoEnt or defaults.entity,
+    }
+end
+
+---
+-- Applies the saved primary ammo override to a weapon definition for future spawns.
+-- @param table equipment Weapon definition
+-- @param[default=false] boolean syncExisting Track existing instances when changing the setting
+-- @realm shared
+-- @internal
+function ShopEditor.ApplyWeaponAmmo(equipment, syncExisting)
+    ShopEditor.InitWeaponAmmo(equipment)
+
+    local defaults = equipment.ttt2DefaultAmmo
+    local ammo = defaults.ammo
+    local entity = defaults.entity
+    local override = equipment.PrimaryAmmo
+
+    if SERVER and (syncExisting or (isstring(override) and override ~= "")) then
+        local class = WEPS.GetClass(equipment)
+
+        if class then
+            for _, wep in ipairs(ents.FindByClass(class)) do
+                WEPS.SyncWeaponAmmo(wep, true)
+            end
+        end
+    end
+
+    if override == "none" then
+        ammo = "none"
+        entity = ""
+    elseif isstring(override) and override ~= "" then
+        local ammoTypes = ShopEditor.GetAmmoTypes(defaults.entity)
+
+        -- A removed addon or invalid value must not leave the weapon with unusable ammo.
+        if ammoTypes[override] then
+            ammo = override
+            entity = ammoTypes[override]
+        end
+    end
+
+    -- Replace the table so existing weapons and other classes keep their ammo settings.
+    equipment.Primary = table.Copy(equipment.Primary or {})
+    equipment.Primary.Ammo = ammo
+    equipment.AmmoEnt = entity
+end
 
 local function getDefaultValue(item, key, data)
     if key == "spawnType" then

@@ -2838,3 +2838,11 @@ L.length_in_meters = "{length}m"
 -- 2025-03-10
 --L.label_sprint_stamina_cooldown = "Stamina cooldown time"
 --L.label_sprint_stamina_forwards_only = "Disallow sprinting backwards or laterally"
+
+-- 2026-11-11
+L.equipmenteditor_name_primary_ammo = "Primärer Munitionstyp"
+L.equipmenteditor_desc_primary_ammo = [[Ändert den primären Munitionstyp und die passende Munitionsbox für neu gespawnte Waffen.
+Nur Munitionstypen mit einer registrierten Munitionsbox sind verfügbar. Standard stellt die ursprünglichen Waffeneinstellungen wieder her.
+Keine deaktiviert Reservemunition, gewährt aber keine unbegrenzten Schüsse. Waffen mit eigener Munitionsverwaltung können diese Einstellung ignorieren.]]
+L.equipmenteditor_ammo_default = "Standard (Waffeneinstellungen)"
+L.equipmenteditor_ammo_none = "Keine (ohne Reservemunition)"

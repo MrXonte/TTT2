@@ -34,6 +34,10 @@ local function AddCallbacks(name, equipmentTable)
             end
 
             equipmentTable[key] = newValue
+
+            if key == "PrimaryAmmo" then
+                ShopEditor.ApplyWeaponAmmo(equipmentTable, true)
+            end
         end,
         callbackIdentifier
     )
@@ -64,6 +68,7 @@ local function TTT2RegisterSWEP(equipment, name, initialize)
 
     -- Initialize Equipment
     AddEquipmentKeyValues(equipment, name)
+    ShopEditor.InitWeaponAmmo(equipment)
     ShopEditor.InitDefaultData(equipment)
 
     if doHotreload then
@@ -159,11 +164,13 @@ local function TTT2RegisterSWEP(equipment, name, initialize)
         if databaseExists then
             table.Merge(equipment, itemTable)
         end
+        ShopEditor.ApplyWeaponAmmo(equipment)
         AddCallbacks(name, equipment)
     elseif CLIENT then
         database.GetValue(ShopEditor.accessName, name, nil, function(databaseExists, itemTable)
             if databaseExists then
                 table.Merge(equipment, itemTable)
+                ShopEditor.ApplyWeaponAmmo(equipment)
                 AddCallbacks(name, equipment)
             end
         end)

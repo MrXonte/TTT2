@@ -45,6 +45,80 @@ function WEPS.GetClass(wep)
     end
 end
 
+local primaryAmmoKey = "ttt2_primary_ammo"
+local ammoEntityKey = "ttt2_ammo_entity"
+
+---
+-- Applies the server's ammo settings to an existing client weapon.
+-- @param Weapon wep Weapon instance
+-- @param[opt] string key Changed network variable
+-- @param[opt] string oldValue Previous value
+-- @param[opt] string newValue New value
+-- @realm client
+-- @internal
+local function ApplyNetworkedWeaponAmmo(wep, key, oldValue, newValue)
+    local ammo = key == primaryAmmoKey and newValue or wep:GetNWString(primaryAmmoKey, "")
+
+    if ammo == "" then
+        return
+    end
+
+    wep.Primary = table.Copy(wep.Primary or {})
+    wep.Primary.Ammo = ammo
+    wep.AmmoEnt = key == ammoEntityKey and newValue or wep:GetNWString(ammoEntityKey, "")
+end
+
+---
+-- Synchronizes an instance's ammo independently of the current equipment editor setting.
+-- This also handles late joins and weapons networked before the equipment database arrives.
+-- @param Weapon wep Weapon instance
+-- @param[default=false] boolean force Track an existing weapon before its class settings change
+-- @realm shared
+-- @internal
+function WEPS.SyncWeaponAmmo(wep, force)
+    if not IsValid(wep) or not wep:IsWeapon() or not wep:IsScripted() then
+        return
+    end
+
+    if SERVER then
+        if
+            not force
+            and (not wep.PrimaryAmmo or wep.PrimaryAmmo == "")
+            and wep:GetNWString(primaryAmmoKey, "") == ""
+        then
+            return
+        end
+
+        if not wep.Primary or not isstring(wep.Primary.Ammo) then
+            return
+        end
+
+        wep:SetNWString(ammoEntityKey, wep.AmmoEnt or "")
+        wep:SetNWString(primaryAmmoKey, wep.Primary.Ammo)
+    else
+        wep:SetNWVarProxy(primaryAmmoKey, ApplyNetworkedWeaponAmmo)
+        wep:SetNWVarProxy(ammoEntityKey, ApplyNetworkedWeaponAmmo)
+        ApplyNetworkedWeaponAmmo(wep)
+    end
+end
+
+hook.Add("OnEntityCreated", "TTT2SyncWeaponAmmo", function(ent)
+    if not IsValid(ent) or not ent:IsWeapon() then
+        return
+    end
+
+    -- Wait until the SWEP table and Initialize have been processed.
+    timer.Simple(0, function()
+        WEPS.SyncWeaponAmmo(ent)
+    end)
+end)
+
+hook.Add("OnReloaded", "TTT2SyncWeaponAmmo", function()
+    for _, ent in ipairs(ents.GetAll()) do
+        WEPS.SyncWeaponAmmo(ent)
+    end
+end)
+
 ---
 -- Returns a table of weapons sorted by the available spawn types.
 -- @return table A table with all weapons sorted by their spawn type

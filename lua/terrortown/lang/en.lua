@@ -2846,3 +2846,11 @@ L.label_armor_block_clubdmg = "Enable armor blocking crowbar damage"
 -- 2025-03-10
 L.label_sprint_stamina_cooldown = "Stamina cooldown time"
 L.label_sprint_stamina_forwards_only = "Disallow sprinting backwards or laterally"
+
+-- 2026-11-11
+L.equipmenteditor_name_primary_ammo = "Primary ammo type"
+L.equipmenteditor_desc_primary_ammo = [[Changes the primary ammo type and its matching ammo box for newly spawned weapons.
+Only ammo types with a registered ammo box are available. Default restores the weapon's original settings.
+None disables reserve ammo; it does not provide unlimited shots. Weapons with custom ammo handling may ignore this setting.]]
+L.equipmenteditor_ammo_default = "Default (weapon settings)"
+L.equipmenteditor_ammo_none = "None (no reserve ammo)"

@@ -150,6 +150,25 @@ function CLGAMEMODESUBMENU:Populate(parent)
         local form2 = vgui.CreateTTT2Form(parent, "header_equipment_value_setup")
 
         form2:MakeHelp({
+            label = "equipmenteditor_desc_primary_ammo",
+        })
+
+        local ammoChoices = {
+            { title = TryT("equipmenteditor_ammo_default"), value = "" },
+            { title = TryT("equipmenteditor_ammo_none"), value = "none" },
+        }
+
+        for ammoType in SortedPairs(ShopEditor.GetAmmoTypes()) do
+            ammoChoices[#ammoChoices + 1] = { title = ammoType, value = ammoType }
+        end
+
+        form2:MakeComboBox({
+            label = "equipmenteditor_name_primary_ammo",
+            database = DatabaseElement(accessName, itemName, "PrimaryAmmo"),
+            choices = ammoChoices,
+        })
+
+        form2:MakeHelp({
             label = "equipmenteditor_desc_allow_drop",
         })
 

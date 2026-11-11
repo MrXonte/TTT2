@@ -67,7 +67,7 @@ end
 -- We were bought as special equipment, and we have an extra to give
 --@ignore
 function SWEP:WasBought(buyer)
-    if IsValid(buyer) then -- probably already self:GetOwner()
-        buyer:GiveAmmo(20, "Pistol")
+    if IsValid(buyer) and self.Primary.Ammo ~= "none" then -- probably already self:GetOwner()
+        buyer:GiveAmmo(20, self.Primary.Ammo)
     end
 end
